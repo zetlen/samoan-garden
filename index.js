@@ -91,8 +91,6 @@ module.exports = function(source, opts, cb) {
     for (var word of dict.anagram(toLetters(letters))) {
       if (minLargestWordSizeRE.test(word)) {
         res.push(word);
-      } else {
-        console.log('rejecting ' + word)
       }
     }
     return res;
