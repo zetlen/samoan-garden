@@ -4,7 +4,8 @@
   "description": "node anagrams",
   "main": "index.js",
   "scripts": {
-    "test": "node --harmony --use_strict --harmony_generators ./test/test.js"
+    "test": "node ./test/test.js",
+    "prepublish": "babel --optional runtime dict-node.es6 > dict-node.js"
   },
   "keywords": [
     "anagram",
@@ -13,6 +14,10 @@
   "author": "zetlen",
   "license": "ISC",
   "dependencies": {
+    "babel-runtime": "^5.8.20",
     "rx": "^3.0.1"
+  },
+  "devDependencies": {
+    "babel": "^5.8.21"
   }
 }
