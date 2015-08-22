@@ -56,7 +56,7 @@ module.exports = function(source, opts, cb) {
     opts = {};
   }
 
-  var minWordSize = opts.minWordSize;
+  var minWordSize = opts.minWordSize || 4;
   var minLargestWordSize = opts.minLargestWordSize || minWordSize;
   var sep = opts.sep || LF;
 
