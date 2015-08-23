@@ -1,11 +1,40 @@
 #!/usr/bin/env node
+var argv = require('minimist')(process.argv.slice(2), {
+  boolean: ['one','async']
+});
 
-var argv = require('minimist')(process.argv.slice(2));
+var text = argv._ && argv._.join('');
 
-require('../')(argv.dict || "/usr/share/dict/words", argv, function(e, generate) {
+if (!text) {
+  console.error('No text provided.');
+  process.exit(1);
+}
+
+var opts = require('camelize')(argv);
+
+var lib = '../es6';
+try {
+  eval('function *g() {}');
+} catch(e) {
+  lib = "../";
+}
+
+require(lib)(opts.dict || "/usr/share/dict/words", opts, function(e, generate) {
+
   if (e) return console.error(e);
-  for (var w of generate(argv._.join(''))) {
+
+  if (opts.one) {
+    return generate.one(text, opts).subscribe(
+      writeln,
+      function(e) { throw e; },
+      function() { process.exit(0); }
+    );
+  }
+
+  generate(text).subscribeOnNext(writeln);
+
+  function writeln(w) {
     process.stdout.write(w + "\n");
   }
-  process.stdout.write('\n\n');
+
 });
