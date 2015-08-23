@@ -1,10 +1,12 @@
 ## samoan garden
-#### node anagrams
+### node anagrams
 
+#### so like
 ```sh
 npm i samoan-garden
 ```
 
+#### and then
 ```js
 
 var samoanGarden = require('samoan-garden');
@@ -49,6 +51,7 @@ samoanGarden(
  */
 ```
 
+#### or maybe
 ```js
 
 var sg = require('./');
@@ -118,5 +121,24 @@ the default timeout is 30 seconds; the above will emit a random anagram in maxim
 
 #### `generate.cancel`
 if you created your garden with `{ async: true }` then you have the ability to cancel generate operations by calling this method with no arguments. save the planet.
+
+### es6
+
+there is an es6 version of the garden that uses native generators. it is a significant speed boost, perhaps 3x. if you are running an engine which supports native generators (such as node 0.12 with the `--harmony` flag) you can use it:
+
+```js
+var samoanGarden = require('samoan-garden/es6');
+```
+
+### command line
+
+```sh
+$ npm i -g samoan-garden
+```
+
+```sh
+$ sg --one --min-largest-word-size=7 reince priebus
+inscribe puree
+```
 
 [1]: https://github.com/Reactive-Extensions/RxJS/tree/master/doc

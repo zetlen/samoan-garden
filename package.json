@@ -3,6 +3,9 @@
   "version": "0.2.1",
   "description": "node anagrams",
   "main": "index.js",
+  "bin": {
+    "sg": "./bin/sg"
+  },
   "scripts": {
     "prepublish": "regenerator --include-runtime ./es6.js | babel > ./index.js"
   },
@@ -25,5 +28,8 @@
   "devDependencies": {
     "babel": "^5.8.21",
     "regenerator": "^0.8.36"
+  },
+  "engines": {
+    "node": "0.12.x"
   }
 }
