@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
-var argv = require('camelize')(require('minimist')(process.argv.slice(2)));
+var argv = require('minimist')(process.argv.slice(2));
 
 require('../')(argv.dict || "/usr/share/dict/words", argv, function(e, generate) {
   if (e) return console.error(e);
-  process.stdout.write(generate(argv._.join('')).join('\n'));
+  for (var w of generate(argv._.join(''))) {
+    process.stdout.write(w + "\n");
+  }
   process.stdout.write('\n\n');
 });

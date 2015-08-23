@@ -86,15 +86,7 @@ module.exports = function(source, opts, cb) {
 
   fillDict(dict, words);
 
-  var generate = function(letters) {
-    var res = [];
-    for (var word of dict.anagram(toLetters(letters))) {
-      if (minLargestWordSizeRE.test(word)) {
-        res.push(word);
-      }
-    }
-    return res;
-  };
+  var generate = dict.anagram.bind(dict);
 
   generate._dict = dict;
 
