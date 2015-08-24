@@ -92,23 +92,23 @@ The `samoanGarden` function takes three arguments: first, a **dictionary**, whic
 
 The second argument is an (optional) options object, which can have these properties:
 
- ##### `timeout`
- A length of time, in milliseconds, after which the garden will artificially stop growing. Long gardening trips can produce plants for a **very** long time; often you'll have enough results before every possible plant is produced.
+##### `timeout`
+A length of time, in milliseconds, after which the garden will artificially stop growing. Long gardening trips can produce plants for a **very** long time; often you'll have enough results before every possible plant is produced.
 
- ##### `minWordSize` *default: `4`*
- The minimum size of the smallest word in each match. Higher numbers mean fewer matches, but faster operation. **This option affects how the garden is planted, so it cannot be overridden later.**
+##### `minWordSize` *default: `4`*
+The minimum size of the smallest word in each match. Higher numbers mean fewer matches, but faster operation. **This option affects how the garden is planted, so it cannot be overridden later.**
 
- ##### `minLargestWordSize`
- The minimum size of the largest word in the match. Combining this with a `minWordSize` can result in very few matches; do a little math in your head first.
+##### `minLargestWordSize`
+The minimum size of the largest word in the match. Combining this with a `minWordSize` can result in very few matches; do a little math in your head first.
 
- ##### `sync` *default: `false`*
- The garden grows asynchronously by default, as Node generally prefers. Set this to `true` for the generation process to be synchronous. The method signatures don't change (you'll still use callbacks) but the underlying generator will run as fast as possible, completing a full sequence before yielding to the event loop. This speeds you up, but long gardening trips can lock the process for minutes. Don't use this in production. If `sync` is true then `timeout` has no effect.
+##### `sync` *default: `false`*
+The garden grows asynchronously by default, as Node generally prefers. Set this to `true` for the generation process to be synchronous. The method signatures don't change (you'll still use callbacks) but the underlying generator will run as fast as possible, completing a full sequence before yielding to the event loop. This speeds you up, but long gardening trips can lock the process for minutes. Don't use this in production. If `sync` is true then `timeout` has no effect.
 
- ##### `sep` *default: `"\n"`*
- The character separator for words in the dictionary. This is almost always a line break, but if you know that your supplied dictionary uses (for example) the comma, then you can set this to `","`. **This option affects how the garden is planted, so it cannot be overridden later.**
+##### `sep` *default: `"\n"`*
+The character separator for words in the dictionary. This is almost always a line break, but if you know that your supplied dictionary uses (for example) the comma, then you can set this to `","`. **This option affects how the garden is planted, so it cannot be overridden later.**
 
- ##### `cache` *default: `false`*
- Set this to `true` to use an internal LRU cache to remember already-calculated sequences. With a reasonable timeout, many anagram sequences don't complete on the first run, but on subsequent runs, the completed portion will come from the cache and it will continue where it left off. **Warning: This uses more memory**, but due to the LRU, it shouldn't leak. The cache persists as long as the `grow` method (described below) does, but has a (large) maximum size. **This option affects how the garden is planted, so it cannot be overridden later.**
+##### `cache` *default: `false`*
+Set this to `true` to use an internal LRU cache to remember already-calculated sequences. With a reasonable timeout, many anagram sequences don't complete on the first run, but on subsequent runs, the completed portion will come from the cache and it will continue where it left off. **Warning: This uses more memory**, but due to the LRU, it shouldn't leak. The cache persists as long as the `grow` method (described below) does, but has a (large) maximum size. **This option affects how the garden is planted, so it cannot be overridden later.**
 
 The third argument is a callback, that will receive (node-style) an error if anything happens, and a `grow` method. this `grow` method can take a phrase, and generate anagrams from the dictionary.
 
