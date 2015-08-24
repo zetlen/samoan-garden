@@ -2,6 +2,7 @@
 var fs = require('fs');
 var Rx = require('rx');
 var Reservoir = require('reservoir');
+var LRU = require('lru-cache');
 const MIN_WORD_SIZE = 4;
 
 let emptyString = '';
@@ -72,9 +73,7 @@ function fillDict(dict, obs) {
     function(word) {
       dict.add(word && word.toLowerCase && word.trim().toLowerCase());
     }, 
-    function(e) {
-      throw e;
-  });
+    Rx.helpers.defaultError);
 }
 
 function splitTextStreamOn(textStream, sep) {
@@ -114,6 +113,31 @@ module.exports = function(source, opts, cb) {
     opts = {};
   }
 
+  var cache;
+  function makeKey(letters) {
+    return letters.toLowerCase().split('').sort().join('');
+  }
+  function putCache(tiles, iterator, results) {
+    var key = makeKey(tiles);
+    var existing = cache.get(key);
+    if (existing) {
+      results = existing.results.concat(results);  
+    }
+    cache.set(makeKey(tiles), { iterator, results });
+  }
+  function getCache(tiles) {
+    return cache.get(makeKey(tiles));
+  }
+  if (opts.cache) {
+    cache = LRU(typeof opts.cache === "object" ? opts.cache : {
+      max: 400000,
+      length: function(o) {
+        var len = o.results.length;
+        return len > 0 ? len * o.results[0].length : 0;
+      }
+    });
+  }
+
   var minWordSize = opts.minWordSize || 4;
   var minLargestWordSize = opts.minLargestWordSize;
   var sep = opts.sep || LF;
@@ -147,45 +171,79 @@ module.exports = function(source, opts, cb) {
 
   var canceled;
 
-  var generate = function(str, async) {
+  var generate = function(str, overrideOpts) {
+
+    var theseOpts = overrideOpts ? 
+      Object.keys(opts).concat(Object.keys(overrideOpts)).reduce((m, k) => {
+        m[k] = overrideOpts.hasOwnProperty(k) ? overrideOpts[k] : opts[k];
+        return m;
+      }, {})
+      : opts;
+
     let letters = trimSpaces(str);
     let tiles = letters.split('').reduce((t, letter) => {
       t[letter] = (t[letter] || 0) + 1;
       return t;
     }, {});
-    var iterator = dict.anagram(tiles, [], dict, letters.length);
-    var first = iterator.next();
-    if (first.done) return Rx.Observable.empty();
-    canceled = false;
-    var scheduler = (async || opts.async) ? Rx.Scheduler.default : Rx.Scheduler.currentThread;
-    var all = Rx.Observable.generate(
-      first.value,
-      x => !(x.done || canceled),
-      () => iterator.next(),
-      x => x.value || x,
-      scheduler
-    );
-    if (minLargestWordSizeRE) {
-      return all.filter(x => !!minLargestWordSizeRE.exec(x));
+
+    let cached;
+    let iterator;
+    let results;
+    if (theseOpts.cache && (cached = getCache(letters))) {
+      iterator = cached.iterator;
+      results = cached.results;
     } else {
-      return all;
+      iterator = dict.anagram(tiles, [], dict, letters.length);
+      results = [];
     }
+
+    var known = Rx.Observable.fromArray(results.slice());
+
+    let first = iterator.next();
+    if (first.done) return known;
+
+    let canceled;
+    if (theseOpts.timeout) setTimeout(() => canceled = true, theseOpts.timeout);
+    let rest = Rx.Observable.generate(
+      first.value,
+      theseOpts.cache ? x => {
+        var finished = x.done || canceled;
+        if (finished) {
+          putCache(letters, iterator, results);
+        }
+        return !finished;
+      } : x => !(x.done || canceled),
+      theseOpts.cache ? () => {
+        var n = iterator.next();
+        if (n.value) results.push(n.value);
+        return n;
+      } : () => iterator.next(),
+      x => x.value || x,
+      !theseOpts.sync ? Rx.Scheduler.default : Rx.Scheduler.currentThread
+    );
+
+    if (minLargestWordSizeRE) {
+      rest = rest.filter(x => !!minLargestWordSizeRE.exec(x));
+    }
+
+    return known.concat(rest);
+
   };
 
-  generate.one = function(letters, opts, callback) {
-    if (arguments.length === 2 && typeof opts === "function") {
-      callback = opts;
-      opts = {};
+  generate.one = function(letters, optOverrides, callback) {
+    if (arguments.length === 2 && typeof optOverrides === "function") {
+      callback = optOverrides;
+      optOverrides = {};
     }
-    var errorHandler = callback || Rx.helpers.defaultError;
-    var sampler = Rx.Observable.create(observer => {
-      var timeout = setTimeout(() => canceled = true, opts && opts.timeout || 30000);
-      var reservoir = Reservoir(opts && opts.poolSize || 50);
-      generate(letters, true).subscribe(
+    optOverrides = optOverrides || {};
+    optOverrides.sync = false;
+    let errorHandler = callback || Rx.helpers.defaultError;
+    let sampler = Rx.Observable.create(observer => {
+      let reservoir = Reservoir(opts.poolSize || 50);
+      generate(letters, optOverrides).subscribe(
         x => reservoir.pushSome(x),
         errorHandler,
         () => {
-          clearTimeout(timeout);
           observer.onNext(reservoir[Math.floor(Math.random() * reservoir.length)]);
           observer.onCompleted();
         }
@@ -199,10 +257,6 @@ module.exports = function(source, opts, cb) {
   };
 
   generate._dict = dict;
-
-  generate.cancel = function() {
-    canceled = true;
-  }
 
   words.subscribeOnError(cb);
 

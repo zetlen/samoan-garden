@@ -55,18 +55,13 @@ samoanGarden(
 ```js
 
 var sg = require('./');
-var scrabbleWords = require.resolve('./sowpods.txt');
 
-sg(
-  scrabbleWords, 
-  { minLargestWordSize: 7 }, 
-  function(e, grow) {
-    if (e) throw e;
-    grow.one('random sample', { timeout: 5000 }, function(e, sample) {
-      console.log(sample);
-    })
-  }
-);
+sg(function(e, grow) {
+  if (e) throw e;
+  grow.one('random sample', { timeout: 5000 }, function(e, sample) {
+    console.log(sample);
+  });
+});
 
 /**
  * console:
@@ -87,7 +82,7 @@ samoanGarden('/usr/share/dict/words', {}, function(chauncey) {
 })
 ```
 
-the `samoanGarden` function takes a dictionary, that can be:
+The `samoanGarden` function takes three arguments: first, a **dictionary**, which can be:
 
  - a falsy value like `null` to use a default enclosed scrabble dictionary
  - a string path to find a dictionary file on the filesystem
@@ -95,32 +90,79 @@ the `samoanGarden` function takes a dictionary, that can be:
  - a text stream that will output words separated by linebreaks
  - an [Rx.Observable][1] that will output words
 
-an optional options object, that can include:
+The second argument is an (optional) options object, which can have these properties:
 
- - `minWordSize` - minimum size of the smallest word in each match *(default 4)*
- - `minLargestWordSize` - minimum size of the largest word in the match *(default none)*
- - `async` - `true` for all operations to be asynchronous. slows you down but keeps the system responsive; long gardening trips can lock your process for minutes. if `async` is false then `timeout` and `generate.cancel` have no effect. *(default false)*
- - `sep` - separator for words in the dictionary *(default `"\n"`, or linebreak)*
+ ##### `timeout`
+ A length of time, in milliseconds, after which the garden will artificially stop growing. Long gardening trips can produce plants for a **very** long time; often you'll have enough results before every possible plant is produced.
 
-and a callback, that will receive (node-style) an error if anything happens, and a generate method. this generate method can take a phrase, and generate anagrams from the dictionary.
+ ##### `minWordSize` *default: `4`*
+ The minimum size of the smallest word in each match. Higher numbers mean fewer matches, but faster operation. **This option affects how the garden is planted, so it cannot be overridden later.**
 
-### generate method
+ ##### `minLargestWordSize`
+ The minimum size of the largest word in the match. Combining this with a `minWordSize` can result in very few matches; do a little math in your head first.
 
-the generate method takes a phrase and returns an [Rx.Observable][1] that will emit anagrams for the phrase. subscribe by calling `subscribeOnNext` on the observable, and your callback will be called once for each word.
+ ##### `sync` *default: `false`*
+ The garden grows asynchronously by default, as Node generally prefers. Set this to `true` for the generation process to be synchronous. The method signatures don't change (you'll still use callbacks) but the underlying generator will run as fast as possible, completing a full sequence before yielding to the event loop. This speeds you up, but long gardening trips can lock the process for minutes. Don't use this in production. If `sync` is true then `timeout` has no effect.
 
-the generate method also has two auxiliary methods:
+ ##### `sep` *default: `"\n"`*
+ The character separator for words in the dictionary. This is almost always a line break, but if you know that your supplied dictionary uses (for example) the comma, then you can set this to `","`. **This option affects how the garden is planted, so it cannot be overridden later.**
 
-#### `generate.one`
-like `generate` itself, but instead of a stream of anagrams, emit one anagram, a random anagram from the stream of possible anagrams. since a random value from a stream could take a long time to resolve, you can provide a millisecond timeout in an options collection:
+ ##### `cache` *default: `false`*
+ Set this to `true` to use an internal LRU cache to remember already-calculated sequences. With a reasonable timeout, many anagram sequences don't complete on the first run, but on subsequent runs, the completed portion will come from the cache and it will continue where it left off. **Warning: This uses more memory**, but due to the LRU, it shouldn't leak. The cache persists as long as the `grow` method (described below) does, but has a (large) maximum size. **This option affects how the garden is planted, so it cannot be overridden later.**
+
+The third argument is a callback, that will receive (node-style) an error if anything happens, and a `grow` method. this `grow` method can take a phrase, and generate anagrams from the dictionary.
+
+### the `grow` method
+
+The grow method takes a phrase and returns an [Rx.Observable][1] that will emit anagrams for the phrase. subscribe by calling `subscribe` on the observable, and your callback will be called once for each word.
 
 ```js
-generate.one(phrase, { timeout: 5000 })
+// simplest case, all defaults
+var sg = require('samoan-garden');
+sg(function(grow) {
+  grow('cool plants').subscribe(console.log);
+});
 ```
 
-the default timeout is 30 seconds; the above will emit a random anagram in maximum 5 seconds (less if all anagrams are calculated before then). if no anagrams are available yet, it will emit `undefined`.
+### the returned observable
+An [Rx.Observable][1] is like an eventEmitter or a stream. It is fast and powerful, but all you have to remember is that it has a `subscribe` method, that takes a data handler first, and then optionally, an error handler and a completion handler. If you want to do something when all the anagrams are done:
 
-#### `generate.cancel`
-if you created your garden with `{ async: true }` then you have the ability to cancel generate operations by calling this method with no arguments. save the planet.
+```js
+grow('neat things').subscribe(
+  function(x) {
+    console.log(x);
+  }, 
+  function(e) {
+    console.error('Uh oh!', e);
+  },
+  function() {
+    console.log('All done!');
+  });
+```
+
+You can supply option overrides as well, for the `timeout`, `minLargestWordSize`, and `sync` options:
+
+```js
+grow('neat things', { timeout: 10000, minLargestWordSize: 5 }).subscribe(console.log);
+```
+
+The grow method also has an auxiliary method: 
+
+### the `grow.one` method
+
+It works like `grow` itself, but:
+
+ - instead of a stream of anagrams, it emit one anagram
+ - this anagram is chosen randomly from the stream
+ - you can optionally pass a callback argument to receive the single anagram, instead of subscribing to the returned observable
+
+```js
+grow.one('prizewinning pumpkin', { timeout: 5000 }, function(one) {
+  console.log(one); // "nine zipping rump wink"
+})
+```
+
+the above will emit a random anagram in maximum 5 seconds (less if all anagrams are calculated before then). if no anagrams are available yet, it will emit `undefined`.
 
 ### es6
 
